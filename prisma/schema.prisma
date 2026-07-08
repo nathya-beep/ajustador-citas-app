@@ -54,13 +54,12 @@ model Appointment {
   lead        Lead              @relation(fields: [leadId], references: [id])
   startsAt    DateTime
   endsAt      DateTime
-  status      AppointmentStatus @default(pending)
-  notes       String?
-  cancelToken String            @unique @default(cuid())
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-
-  @@unique([startsAt, endsAt])
+  status         AppointmentStatus @default(pending)
+  notes          String?
+  cancelToken    String            @unique @default(cuid())
+  reminderSentAt DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
 
 model FollowUp {
