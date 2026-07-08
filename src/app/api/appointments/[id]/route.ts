@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdminSession } from "@/lib/auth";
 
@@ -17,10 +18,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const appointment = await prisma.appointment.update({
-    where: { id: params.id },
-    data: { status: status as (typeof VALID_STATUSES)[number] },
-  });
+  try {
+    const appointment = await prisma.appointment.update({
+      where: { id: params.id },
+      data: { status: status as (typeof VALID_STATUSES)[number] },
+    });
 
-  return NextResponse.json({ appointment });
+    return NextResponse.json({ appointment });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
+    throw error;
+  }
 }
