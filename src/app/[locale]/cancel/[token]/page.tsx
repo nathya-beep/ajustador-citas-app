@@ -11,8 +11,12 @@ export default function CancelPage() {
 
   async function handleCancel() {
     setStatus("cancelling");
-    const response = await fetch(`/api/appointments/cancel/${params.token}`, { method: "POST" });
-    setStatus(response.ok ? "done" : "error");
+    try {
+      const response = await fetch(`/api/appointments/cancel/${params.token}`, { method: "POST" });
+      setStatus(response.ok ? "done" : "error");
+    } catch {
+      setStatus("error");
+    }
   }
 
   if (status === "done") {
