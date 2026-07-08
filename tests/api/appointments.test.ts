@@ -138,4 +138,58 @@ describe("POST /api/appointments", () => {
 
     expect(response.status).toBe(409);
   });
+
+  it("allows re-booking a slot after the original appointment is cancelled", async () => {
+    const startsAt = nextMonday9am();
+    const firstResponse = await POST(
+      makeRequest({
+        firstName: "Ana",
+        lastName: "Gomez",
+        email: "ana5@test.com",
+        phone: "555-1111",
+        language: "es",
+        startsAt: startsAt.toISOString(),
+      })
+    );
+    expect(firstResponse.status).toBe(201);
+    const firstBody = await firstResponse.json();
+
+    // Simulate the cancel route: mark the appointment as cancelled directly.
+    await prisma.appointment.update({
+      where: { id: firstBody.appointment.id },
+      data: { status: "cancelled" },
+    });
+
+    // The freed slot must now be bookable again (partial unique index scoped to active statuses).
+    const response = await POST(
+      makeRequest({
+        firstName: "Beto",
+        lastName: "Ruiz",
+        email: "beto2@test.com",
+        phone: "555-2222",
+        language: "es",
+        startsAt: startsAt.toISOString(),
+      })
+    );
+
+    expect(response.status).toBe(201);
+  });
+
+  it("rejects a booking outside the adjuster's available hours", async () => {
+    // 22:00 on the next available weekday is outside the seeded Mon-Fri 09:00-17:00 window.
+    const startsAt = nextMonday9am();
+    startsAt.setHours(22, 0, 0, 0);
+    const response = await POST(
+      makeRequest({
+        firstName: "Ana",
+        lastName: "Gomez",
+        email: "ana6@test.com",
+        phone: "555-1111",
+        language: "es",
+        startsAt: startsAt.toISOString(),
+      })
+    );
+
+    expect(response.status).toBe(422);
+  });
 });
