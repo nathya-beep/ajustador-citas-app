@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     where: {
       status: { in: ["pending", "confirmed"] },
       startsAt: { gte: windowStart, lte: windowEnd },
+      reminderSentAt: null,
     },
     include: { lead: true },
   });
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
       leadFirstName: appointment.lead.firstName,
       startsAt: appointment.startsAt,
       cancelUrl,
+    });
+    await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: { reminderSentAt: new Date() },
     });
   }
 

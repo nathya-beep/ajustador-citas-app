@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { computeAvailableSlots, WeeklyAvailability } from "@/lib/availability";
-import { ACTIVE_APPOINTMENT_STATUSES } from "@/lib/booking";
+import { ACTIVE_APPOINTMENT_STATUSES, isAtLeastAdvanceHours } from "@/lib/booking";
 
 export async function GET(request: NextRequest) {
   const dateParam = request.nextUrl.searchParams.get("date");
@@ -33,5 +33,8 @@ export async function GET(request: NextRequest) {
 
   const slots = computeAvailableSlots(date, adjuster.availability as WeeklyAvailability, busyAppointments);
 
-  return NextResponse.json({ slots: slots.map((s) => s.toISOString()) });
+  const now = new Date();
+  const bookableSlots = slots.filter((slot) => isAtLeastAdvanceHours(slot, now));
+
+  return NextResponse.json({ slots: bookableSlots.map((s) => s.toISOString()) });
 }

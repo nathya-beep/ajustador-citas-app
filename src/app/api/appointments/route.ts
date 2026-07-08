@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isAtLeastAdvanceHours, ACTIVE_APPOINTMENT_STATUSES } from "@/lib/booking";
-import { SLOT_DURATION_MINUTES } from "@/lib/availability";
+import { SLOT_DURATION_MINUTES, computeAvailableSlots, WeeklyAvailability } from "@/lib/availability";
 import { sendConfirmationEmail } from "@/lib/email";
 
 type CreateAppointmentBody = {
@@ -55,6 +55,29 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        const adjuster = await tx.adjuster.findFirst();
+        if (!adjuster) {
+          throw new Error("ADJUSTER_NOT_CONFIGURED");
+        }
+
+        // Enforce the adjuster's configured weekly schedule. We pass no busy slots here so this
+        // check is purely "is startsAt a valid slot in the schedule?" — slot-already-taken is
+        // handled separately below (SLOT_TAKEN -> 409) so it isn't misreported as a 422.
+        const dayStart = new Date(startsAt);
+        dayStart.setHours(0, 0, 0, 0);
+
+        const scheduleSlots = computeAvailableSlots(
+          dayStart,
+          adjuster.availability as WeeklyAvailability,
+          []
+        );
+        const isWithinAvailability = scheduleSlots.some(
+          (slot) => slot.getTime() === startsAt.getTime()
+        );
+        if (!isWithinAvailability) {
+          throw new Error("SLOT_OUTSIDE_AVAILABILITY");
+        }
+
         const activeLeadAppointments = await tx.appointment.findMany({
           where: { leadId: lead.id, status: { in: [...ACTIVE_APPOINTMENT_STATUSES] } },
         });
@@ -95,6 +118,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "SLOT_OUTSIDE_AVAILABILITY") {
+      return NextResponse.json(
+        { error: "This time is outside the adjuster's available hours" },
+        { status: 422 }
+      );
+    }
+    if (error instanceof Error && error.message === "ADJUSTER_NOT_CONFIGURED") {
+      return NextResponse.json({ error: "Adjuster not configured" }, { status: 500 });
+    }
     if (error instanceof Error && error.message === "SLOT_TAKEN") {
       return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
     }
