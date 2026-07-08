@@ -11,16 +11,21 @@ export default function AdminLoginPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const response = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    setError("");
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (response.ok) {
-      router.push("/admin");
-    } else {
-      setError("Credenciales inválidas");
+      if (response.ok) {
+        router.push("/admin");
+      } else {
+        setError("Credenciales inválidas");
+      }
+    } catch {
+      setError("No se pudo conectar. Intenta de nuevo.");
     }
   }
 

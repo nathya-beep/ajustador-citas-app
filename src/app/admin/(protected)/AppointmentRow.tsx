@@ -13,16 +13,27 @@ type Appointment = {
 export function AppointmentRow({ appointment }: { appointment: Appointment }) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState("");
 
   async function updateStatus(status: string) {
     setUpdating(true);
-    await fetch(`/api/appointments/${appointment.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setUpdating(false);
-    router.refresh();
+    setError("");
+    try {
+      const response = await fetch(`/api/appointments/${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        setError("No se pudo actualizar la cita. Intenta de nuevo.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("No se pudo conectar. Intenta de nuevo.");
+    } finally {
+      setUpdating(false);
+    }
   }
 
   return (
@@ -39,6 +50,11 @@ export function AppointmentRow({ appointment }: { appointment: Appointment }) {
         <button disabled={updating} onClick={() => updateStatus("cancelled")}>
           Cancelar
         </button>
+        {error && (
+          <p role="alert" style={{ color: "red" }}>
+            {error}
+          </p>
+        )}
       </td>
     </tr>
   );
