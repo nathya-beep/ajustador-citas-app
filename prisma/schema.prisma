@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadStatus {
+  new
+  contacted
+  scheduled
+  no_response
+  not_interested
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  rescheduled
+}
+
+model Adjuster {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  serviceAreas String
+  availability Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Lead {
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phone        String
+  language     String        @default("es")
+  status       LeadStatus    @default(new)
+  appointments Appointment[]
+  followUps    FollowUp[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  leadId      String
+  lead        Lead              @relation(fields: [leadId], references: [id])
+  startsAt    DateTime
+  endsAt      DateTime
+  status      AppointmentStatus @default(pending)
+  notes       String?
+  cancelToken String            @unique @default(cuid())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([startsAt, endsAt])
+}
+
+model FollowUp {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  attemptedAt DateTime @default(now())
+  result      String
+}
