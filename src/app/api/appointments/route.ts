@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isAtLeastAdvanceHours, ACTIVE_APPOINTMENT_STATUSES } from "@/lib/booking";
 import { SLOT_DURATION_MINUTES } from "@/lib/availability";
@@ -99,6 +100,12 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof Error && error.message === "LEAD_HAS_ACTIVE_APPOINTMENT") {
       return NextResponse.json({ error: "You already have an active appointment" }, { status: 409 });
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034")
+    ) {
+      return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
     }
     console.error("Failed to create appointment", error);
     return NextResponse.json({ error: "Failed to create appointment" }, { status: 500 });

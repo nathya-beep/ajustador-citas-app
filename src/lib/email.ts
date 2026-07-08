@@ -1,6 +1,9 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 const FROM_ADDRESS = "citas@tudominio.com";
 
@@ -33,6 +36,12 @@ function formatConfirmationBody(params: ConfirmationEmailParams): string {
 export async function sendConfirmationEmail(
   params: ConfirmationEmailParams
 ): Promise<{ success: boolean }> {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("RESEND_API_KEY not set, skipping confirmation email");
+    return { success: false };
+  }
+
   try {
     await resend.emails.send({
       from: FROM_ADDRESS,
