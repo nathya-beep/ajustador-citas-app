@@ -3,6 +3,16 @@ import { NextRequest } from "next/server";
 import { POST } from "@/app/api/appointments/route";
 import { prisma } from "@/lib/db";
 
+// Safety guard: prevent this test file from running against non-test databases
+if (!process.env.DATABASE_URL?.includes("_test")) {
+  throw new Error(
+    'Refusing to run tests/api/appointments.test.ts: DATABASE_URL does not point at a "_test" database. ' +
+    "This test file deletes all Appointment/Lead/Adjuster rows in its beforeEach. " +
+    'Set DATABASE_URL to a database whose name contains "_test" before running this file, e.g.:\n' +
+    '  DATABASE_URL="postgresql://ajustador:ajustador_dev_pw@localhost:5432/ajustador_citas_test" npx vitest run tests/api/appointments.test.ts'
+  );
+}
+
 function nextMonday9am(): Date {
   const date = new Date();
   const daysUntilMonday = (1 + 7 - date.getDay()) % 7 || 7;
