@@ -15,13 +15,26 @@ export default function SchedulePage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [availabilityError, setAvailabilityError] = useState("");
 
   useEffect(() => {
     if (!date) return;
+    setAvailabilityError("");
     fetch(`/api/availability?date=${date}`)
-      .then((res) => res.json())
-      .then((data) => setSlots(data.slots ?? []));
-  }, [date]);
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          setSlots([]);
+          setAvailabilityError(data.error ?? "Failed to load available slots");
+          return;
+        }
+        setSlots(data.slots ?? []);
+      })
+      .catch(() => {
+        setSlots([]);
+        setAvailabilityError(locale === "en" ? "Failed to load available slots" : "No se pudieron cargar los horarios disponibles");
+      });
+  }, [date, locale]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -63,6 +76,7 @@ export default function SchedulePage() {
           </li>
         ))}
       </ul>
+      {availabilityError && <p role="alert">{availabilityError}</p>}
 
       {selectedSlot && (
         <form onSubmit={handleSubmit}>
