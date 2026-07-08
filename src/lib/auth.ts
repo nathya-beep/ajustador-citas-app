@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import crypto from "crypto";
 
 export const SESSION_COOKIE = "admin_session";
-const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -35,7 +35,11 @@ export function verifySessionToken(token: string): boolean {
 }
 
 export async function requireAdminSession(request: NextRequest): Promise<boolean> {
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return false;
-  return verifySessionToken(token);
+  try {
+    const token = request.cookies.get(SESSION_COOKIE)?.value;
+    if (!token) return false;
+    return verifySessionToken(token);
+  } catch {
+    return false;
+  }
 }
