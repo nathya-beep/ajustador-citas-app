@@ -20,3 +20,15 @@ export async function POST(request: NextRequest) {
   });
   return response;
 }
+
+export async function DELETE() {
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}

@@ -181,3 +181,51 @@ footer a { color: var(--amber); }
   .blk h2 { font-size: 27px; }
   .cta-final { padding: 32px 20px; }
 }
+
+/* ===================== Panel del ajustador ===================== */
+/* Login */
+.login-bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--ink); padding: 20px; position: relative; overflow: hidden; }
+.login-bg::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 32px 32px; opacity: .5; }
+.login-card { background: #fff; border-radius: 18px; padding: 34px; width: 100%; max-width: 380px; box-shadow: 0 30px 80px rgba(0,0,0,.4); position: relative; z-index: 2; }
+.login-card .logo { justify-content: center; margin-bottom: 4px; }
+.login-card .login-sub { text-align: center; color: var(--txt2); font-size: 14px; margin: 0 0 22px; }
+.login-card .login-hint { text-align: center; font-size: 12px; color: var(--txt2); margin-top: 14px; }
+.login-card .login-hint a { cursor: pointer; }
+
+/* Estructura del panel */
+.admin-topbar { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
+.admin-topbar-in { max-width: 1120px; margin: 0 auto; padding: 12px 22px; display: flex; align-items: center; gap: 14px; }
+.admin-topbar .tag { font-size: 12px; font-weight: 500; color: var(--txt2); }
+.admin-wrap { max-width: 1120px; margin: 0 auto; padding: 26px 22px; }
+.admin-wrap h1 { font-size: 26px; color: var(--ink); margin: 0 0 4px; }
+.admin-wrap .subtitle { color: var(--txt2); font-size: 14px; margin: 0 0 22px; }
+
+.admin-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.admin-kpi { background: #fff; border: 1px solid var(--line); border-radius: var(--radio); padding: 16px 18px; box-shadow: var(--sombra); }
+.admin-kpi .lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--txt2); font-weight: 600; }
+.admin-kpi .val { font-family: var(--font-display); font-size: 30px; font-weight: 600; color: var(--ink); margin-top: 3px; }
+.admin-kpi.k1 { border-top: 3px solid var(--azul); }
+.admin-kpi.k2 { border-top: 3px solid var(--amber); }
+.admin-kpi.k3 { border-top: 3px solid var(--green); }
+.admin-kpi.k4 { border-top: 3px solid #6b5cff; }
+
+.admin-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radio); box-shadow: var(--sombra); overflow: hidden; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--txt2); padding: 13px 18px; border-bottom: 2px solid var(--line); background: var(--paper); }
+.admin-table td { padding: 13px 18px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; color: var(--txt); }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #fafbfc; }
+.admin-empty { padding: 40px; text-align: center; color: var(--txt2); }
+
+.status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
+.status-pending { background: #fdf1d8; color: #946200; }
+.status-confirmed { background: #e2eefb; color: #155ba8; }
+.status-completed { background: #e4f6ec; color: #177a4a; }
+.status-cancelled { background: #eef1f4; color: #5c6b80; }
+.status-no_response { background: #fbeaea; color: #b33a3a; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+@media (max-width: 720px) {
+  .admin-kpis { grid-template-columns: repeat(2, 1fr); }
+  .admin-card { overflow-x: auto; }
+}

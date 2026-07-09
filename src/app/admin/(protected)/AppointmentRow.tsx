@@ -10,6 +10,14 @@ type Appointment = {
   lead: { firstName: string; lastName: string };
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmada",
+  completed: "Completada",
+  cancelled: "Cancelada",
+  no_response: "Sin respuesta",
+};
+
 export function AppointmentRow({ appointment }: { appointment: Appointment }) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
@@ -36,25 +44,34 @@ export function AppointmentRow({ appointment }: { appointment: Appointment }) {
     }
   }
 
+  const isClosed = appointment.status === "completed" || appointment.status === "cancelled";
+
   return (
     <tr>
-      <td>{new Date(appointment.startsAt).toLocaleString("es-ES")}</td>
       <td>
-        {appointment.lead.firstName} {appointment.lead.lastName}
+        {new Date(appointment.startsAt).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" })}
       </td>
-      <td>{appointment.status}</td>
+      <td><b>{appointment.lead.firstName} {appointment.lead.lastName}</b></td>
       <td>
-        <button disabled={updating} onClick={() => updateStatus("completed")}>
-          Completada
-        </button>
-        <button disabled={updating} onClick={() => updateStatus("cancelled")}>
-          Cancelar
-        </button>
-        {error && (
-          <p role="alert" style={{ color: "red" }}>
-            {error}
-          </p>
-        )}
+        <span className={`status status-${appointment.status}`}>
+          {STATUS_LABEL[appointment.status] ?? appointment.status}
+        </span>
+      </td>
+      <td>
+        <div className="row-actions">
+          {!isClosed && (
+            <>
+              <button className="btn btn-primary btn-sm" disabled={updating} onClick={() => updateStatus("completed")}>
+                Completada
+              </button>
+              <button className="btn btn-ghost btn-sm" disabled={updating} onClick={() => updateStatus("cancelled")}>
+                Cancelar
+              </button>
+            </>
+          )}
+          {isClosed && <span className="muted">—</span>}
+          {error && <span className="alert-err" role="alert">{error}</span>}
+        </div>
       </td>
     </tr>
   );
