@@ -3,7 +3,11 @@ import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  // Reject if CRON_SECRET is unset/empty: otherwise the comparison becomes
+  // `!== "Bearer undefined"`, which a request literally sending
+  // `Authorization: Bearer undefined` would satisfy, silently bypassing auth.
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

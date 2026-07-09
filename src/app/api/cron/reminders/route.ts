@@ -4,7 +4,11 @@ import { sendReminderEmail } from "@/lib/email";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  // Reject if CRON_SECRET is unset/empty: otherwise the comparison becomes
+  // `!== "Bearer undefined"`, which a request literally sending
+  // `Authorization: Bearer undefined` would satisfy, silently bypassing auth.
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,17 +27,25 @@ export async function GET(request: NextRequest) {
 
   for (const appointment of dueAppointments) {
     const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${appointment.lead.language}/cancel/${appointment.cancelToken}`;
-    await sendReminderEmail({
+    const { success } = await sendReminderEmail({
       to: appointment.lead.email,
       language: appointment.lead.language === "en" ? "en" : "es",
       leadFirstName: appointment.lead.firstName,
       startsAt: appointment.startsAt,
       cancelUrl,
     });
-    await prisma.appointment.update({
-      where: { id: appointment.id },
-      data: { reminderSentAt: new Date() },
-    });
+    // Only mark the reminder as sent when the send actually succeeded; otherwise leave
+    // reminderSentAt null so the next hourly run retries it. (Note: this does not solve
+    // the concurrent-invocation race — two overlapping cron runs could both send — which
+    // would need a claim-based updateMany pattern; tracked as a known limitation.)
+    if (success) {
+      await prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { reminderSentAt: new Date() },
+      });
+    } else {
+      console.warn(`Reminder email failed for appointment ${appointment.id}; will retry next run`);
+    }
   }
 
   return NextResponse.json({ sent: dueAppointments.length });
