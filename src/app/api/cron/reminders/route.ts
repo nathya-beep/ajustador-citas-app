@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // This cron runs once per day (Vercel Hobby plan limit), not hourly, so the
+  // window must be wide enough that any appointment due "tomorrow" is caught
+  // by the single daily run regardless of what time it was booked for.
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+  const windowStart = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+  const windowEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000);
 
   const dueAppointments = await prisma.appointment.findMany({
     where: {
