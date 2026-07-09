@@ -1,7 +1,20 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "@/app/api/appointments/route";
+import { POST as cancelAppointment } from "@/app/api/appointments/cancel/[token]/route";
+import { PATCH as patchAppointment } from "@/app/api/appointments/[id]/route";
 import { prisma } from "@/lib/db";
+import { createSessionToken, SESSION_COOKIE } from "@/lib/auth";
+
+// Mock the email layer so we can assert on send behavior (e.g. no duplicate follow-ups)
+// without hitting the network. All senders report success by default.
+vi.mock("@/lib/email", () => ({
+  sendConfirmationEmail: vi.fn(async () => ({ success: true })),
+  sendReminderEmail: vi.fn(async () => ({ success: true })),
+  sendFollowUpEmail: vi.fn(async () => ({ success: true })),
+}));
+
+import { sendFollowUpEmail } from "@/lib/email";
 
 // Safety guard: prevent this test file from running against non-test databases
 if (!process.env.DATABASE_URL?.includes("_test")) {
@@ -191,5 +204,104 @@ describe("POST /api/appointments", () => {
     );
 
     expect(response.status).toBe(422);
+  });
+});
+
+let slotCounter = 0;
+
+async function createLeadWithAppointment(status: "pending" | "confirmed" | "completed" | "cancelled") {
+  const lead = await prisma.lead.create({
+    data: {
+      firstName: "Lia",
+      lastName: "Test",
+      email: `lia-${Math.random().toString(36).slice(2)}@test.com`,
+      phone: "555-9999",
+      language: "es",
+    },
+  });
+  // Use a distinct slot per appointment so active (pending/confirmed) rows never collide
+  // on the partial unique index (Appointment_active_slot_key).
+  const startsAt = nextMonday9am();
+  startsAt.setDate(startsAt.getDate() + slotCounter++);
+  const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+  const appointment = await prisma.appointment.create({
+    data: { leadId: lead.id, startsAt, endsAt, status },
+  });
+  return { lead, appointment };
+}
+
+describe("POST /api/appointments/cancel/[token]", () => {
+  it("cancels an active (pending) appointment", async () => {
+    const { appointment } = await createLeadWithAppointment("pending");
+    const request = new NextRequest("http://localhost/api/appointments/cancel/x", { method: "POST" });
+    const response = await cancelAppointment(request, { params: { token: appointment.cancelToken } });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.appointment.status).toBe("cancelled");
+  });
+
+  it("refuses to cancel an already-completed appointment (409) and leaves status unchanged", async () => {
+    const { appointment } = await createLeadWithAppointment("completed");
+    const request = new NextRequest("http://localhost/api/appointments/cancel/x", { method: "POST" });
+    const response = await cancelAppointment(request, { params: { token: appointment.cancelToken } });
+
+    expect(response.status).toBe(409);
+    const stored = await prisma.appointment.findUnique({ where: { id: appointment.id } });
+    expect(stored?.status).toBe("completed");
+  });
+
+  it("returns 404 for an unknown token", async () => {
+    const request = new NextRequest("http://localhost/api/appointments/cancel/x", { method: "POST" });
+    const response = await cancelAppointment(request, { params: { token: "does-not-exist" } });
+    expect(response.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/appointments/[id]", () => {
+  beforeAll(() => {
+    process.env.SESSION_SECRET = "test-secret";
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function adminPatch(id: string, status: string): NextRequest {
+    const request = new NextRequest(`http://localhost/api/appointments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    request.cookies.set(SESSION_COOKIE, createSessionToken());
+    return request;
+  }
+
+  it("sends the follow-up email once when transitioning into completed", async () => {
+    const { appointment } = await createLeadWithAppointment("confirmed");
+    const response = await patchAppointment(adminPatch(appointment.id, "completed"), {
+      params: { id: appointment.id },
+    });
+
+    expect(response.status).toBe(200);
+    expect(sendFollowUpEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-send the follow-up email on a repeated completed PATCH", async () => {
+    const { appointment } = await createLeadWithAppointment("completed");
+    const response = await patchAppointment(adminPatch(appointment.id, "completed"), {
+      params: { id: appointment.id },
+    });
+
+    expect(response.status).toBe(200);
+    expect(sendFollowUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects the removed 'rescheduled' status with 400", async () => {
+    const { appointment } = await createLeadWithAppointment("confirmed");
+    const response = await patchAppointment(adminPatch(appointment.id, "rescheduled"), {
+      params: { id: appointment.id },
+    });
+
+    expect(response.status).toBe(400);
   });
 });
