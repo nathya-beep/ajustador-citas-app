@@ -120,6 +120,20 @@ export const dictionary = {
     schedResponseNote: "Free to book · Your data is protected",
     schedBack: "← Back to home",
     schedSelected: "Selected",
+
+    // Contáctame (captación → embudo)
+    contactCta: "Contact me",
+    contactTitle: "Leave your details and we'll call you",
+    contactSub: "An adjuster will call you shortly — no need to wait on the phone.",
+    contactName: "Full name",
+    contactPhone: "Phone",
+    contactEmail: "Email (optional)",
+    contactMsg: "What do you need? (optional)",
+    contactSubmit: "Have an adjuster call me",
+    contactSending: "Sending…",
+    contactOk: "Thanks! We'll contact you shortly.",
+    contactErr: "Couldn't send. Please try again.",
+    contactReq: "Name and phone are required.",
   },
   es: {
     // Compat / existentes
@@ -237,6 +251,20 @@ export const dictionary = {
     schedResponseNote: "Agendar es gratis · Tus datos están protegidos",
     schedBack: "← Volver al inicio",
     schedSelected: "Seleccionado",
+
+    // Contáctame (captación → embudo)
+    contactCta: "Contáctame",
+    contactTitle: "Déjanos tus datos y te llamamos",
+    contactSub: "Un ajustador te llamará muy pronto — sin esperas al teléfono.",
+    contactName: "Nombre completo",
+    contactPhone: "Teléfono",
+    contactEmail: "Correo (opcional)",
+    contactMsg: "¿Qué necesitas? (opcional)",
+    contactSubmit: "Que un ajustador me llame",
+    contactSending: "Enviando…",
+    contactOk: "¡Gracias! Te contactaremos muy pronto.",
+    contactErr: "No se pudo enviar. Intenta de nuevo.",
+    contactReq: "Nombre y teléfono son obligatorios.",
   },
 } as const;
 
