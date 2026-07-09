@@ -83,6 +83,8 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
   const [schedDate, setSchedDate] = useState("");
   const [schedSlots, setSchedSlots] = useState<string[]>([]);
   const [schedLoading, setSchedLoading] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [nf, setNf] = useState({ firstName: "", lastName: "", phone: "", email: "", language: "es" });
   useEffect(() => { setSched(false); setSchedDate(""); setErr(""); setNote(""); }, [selectedId]);
   useEffect(() => {
     if (!sched || !schedDate) { setSchedSlots([]); return; }
@@ -130,6 +132,11 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
     const text = note.trim(); if (!text) return;
     const ok = await call(`/api/admin/leads/${leadId}/followups`, "POST", { result: text });
     if (ok) setNote("");
+  }
+  async function createLead() {
+    if (!nf.firstName.trim() || !nf.phone.trim()) { setErr("Nombre y teléfono son obligatorios"); return; }
+    const ok = await call("/api/admin/leads", "POST", nf);
+    if (ok) { setNewOpen(false); setNf({ firstName: "", lastName: "", phone: "", email: "", language: "es" }); }
   }
 
   if (!mounted) {
@@ -188,12 +195,15 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
         <div className="admin-kpi k4"><div className="lbl">Conversión</div><div className="val">{conv}%</div></div>
       </div>
 
-      <div className="panel-tabs">
-        <button className={tab === "resumen" ? "on" : ""} onClick={() => setTab("resumen")}>📊 Resumen</button>
-        <button className={tab === "pipeline" ? "on" : ""} onClick={() => setTab("pipeline")}>🔀 Embudo</button>
-        <button className={tab === "calendario" ? "on" : ""} onClick={() => setTab("calendario")}>📆 Calendario</button>
-        <button className={tab === "recordatorios" ? "on" : ""} onClick={() => setTab("recordatorios")}>🔔 Recordatorios{rem.length ? ` (${rem.length})` : ""}</button>
-        <button className={tab === "prospectos" ? "on" : ""} onClick={() => setTab("prospectos")}>🗂️ Prospectos</button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 22 }}>
+        <div className="panel-tabs" style={{ marginBottom: 0 }}>
+          <button className={tab === "resumen" ? "on" : ""} onClick={() => setTab("resumen")}>📊 Resumen</button>
+          <button className={tab === "pipeline" ? "on" : ""} onClick={() => setTab("pipeline")}>🔀 Embudo</button>
+          <button className={tab === "calendario" ? "on" : ""} onClick={() => setTab("calendario")}>📆 Calendario</button>
+          <button className={tab === "recordatorios" ? "on" : ""} onClick={() => setTab("recordatorios")}>🔔 Recordatorios{rem.length ? ` (${rem.length})` : ""}</button>
+          <button className={tab === "prospectos" ? "on" : ""} onClick={() => setTab("prospectos")}>🗂️ Prospectos</button>
+        </div>
+        <button className="btn btn-primary btn-sm" style={{ marginLeft: "auto" }} onClick={() => setNewOpen(true)}>＋ Nuevo prospecto</button>
       </div>
 
       {err && <p className="alert-err" role="alert" style={{ marginBottom: 16 }}>{err}</p>}
@@ -340,6 +350,30 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* MODAL NUEVO PROSPECTO */}
+      {newOpen && (
+        <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setNewOpen(false)}>
+          <div className="modal">
+            <div className="modal-h"><h3>Nuevo prospecto</h3><button className="x" onClick={() => setNewOpen(false)}>×</button></div>
+            <div className="grid2">
+              <div className="field"><label>Nombre</label><input value={nf.firstName} onChange={(e) => setNf({ ...nf, firstName: e.target.value })} /></div>
+              <div className="field"><label>Apellido</label><input value={nf.lastName} onChange={(e) => setNf({ ...nf, lastName: e.target.value })} /></div>
+            </div>
+            <div className="grid2">
+              <div className="field"><label>Teléfono</label><input value={nf.phone} onChange={(e) => setNf({ ...nf, phone: e.target.value })} placeholder="+1 305 555 0000" /></div>
+              <div className="field"><label>Correo (opcional)</label><input value={nf.email} onChange={(e) => setNf({ ...nf, email: e.target.value })} /></div>
+            </div>
+            <div className="field"><label>Idioma</label>
+              <select value={nf.language} onChange={(e) => setNf({ ...nf, language: e.target.value })} style={{ width: "100%", padding: 12, border: "1.5px solid var(--line)", borderRadius: 10 }}>
+                <option value="es">Español</option><option value="en">English</option>
+              </select>
+            </div>
+            {err && <p className="alert-err" role="alert" style={{ marginTop: 8 }}>{err}</p>}
+            <button className="btn btn-primary btn-block" style={{ marginTop: 8 }} disabled={busy} onClick={createLead}>Crear prospecto</button>
+          </div>
         </div>
       )}
 
