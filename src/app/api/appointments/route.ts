@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { isAtLeastAdvanceHours, ACTIVE_APPOINTMENT_STATUSES } from "@/lib/booking";
+import { isAtLeastAdvanceHours, ACTIVE_APPOINTMENT_STATUSES, hasActiveAppointmentConflict } from "@/lib/booking";
 import { SLOT_DURATION_MINUTES, computeAvailableSlots, WeeklyAvailability } from "@/lib/availability";
 import { sendConfirmationEmail } from "@/lib/email";
 
@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
 
         const activeLeadAppointments = await tx.appointment.findMany({
           where: { leadId: lead.id, status: { in: [...ACTIVE_APPOINTMENT_STATUSES] } },
+          select: { status: true },
         });
-        if (activeLeadAppointments.length > 0) {
+        if (hasActiveAppointmentConflict(activeLeadAppointments.map((a) => a.status))) {
           throw new Error("LEAD_HAS_ACTIVE_APPOINTMENT");
         }
 
@@ -108,13 +109,24 @@ export async function POST(request: NextRequest) {
     );
 
     const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${body.language}/cancel/${appointment.cancelToken}`;
-    await sendConfirmationEmail({
+    // Email is best-effort and sent AFTER the booking transaction has committed. We track
+    // delivery in confirmationSentAt but never fail the booking on a send failure — the
+    // appointment already exists, so we still return 201.
+    const { success } = await sendConfirmationEmail({
       to: body.email!,
       language: body.language!,
       leadFirstName: body.firstName!,
       startsAt,
       cancelUrl,
     });
+    if (success) {
+      await prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { confirmationSentAt: new Date() },
+      });
+    } else {
+      console.warn(`Confirmation email not sent for appointment ${appointment.id}`);
+    }
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error) {
