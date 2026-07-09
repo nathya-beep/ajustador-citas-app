@@ -30,3 +30,25 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     throw error;
   }
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  const isAuthenticated = await requireAdminSession(request);
+  if (!isAuthenticated) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    // No hay borrado en cascada en el esquema: eliminamos dependientes primero.
+    await prisma.$transaction([
+      prisma.followUp.deleteMany({ where: { leadId: params.id } }),
+      prisma.appointment.deleteMany({ where: { leadId: params.id } }),
+      prisma.lead.delete({ where: { id: params.id } }),
+    ]);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+    throw error;
+  }
+}

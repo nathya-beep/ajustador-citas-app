@@ -138,6 +138,11 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
     const ok = await call("/api/admin/leads", "POST", nf);
     if (ok) { setNewOpen(false); setNf({ firstName: "", lastName: "", phone: "", email: "", language: "es" }); }
   }
+  async function deleteLead(leadId: string) {
+    if (!window.confirm("¿Eliminar este prospecto y sus citas? Esta acción no se puede deshacer.")) return;
+    const ok = await call(`/api/admin/leads/${leadId}`, "DELETE");
+    if (ok) setSelectedId(null);
+  }
 
   if (!mounted) {
     return <div className="admin-empty" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "var(--radio)" }}>Cargando panel…</div>;
@@ -460,6 +465,10 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
                   <input placeholder="Agregar nota de seguimiento…" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote(l.id)} />
                   <button className="btn btn-ink btn-sm" disabled={busy} onClick={() => addNote(l.id)}>Añadir</button>
                 </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 16, paddingTop: 14, textAlign: "right" }}>
+                <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)", borderColor: "#f3c6c6" }} disabled={busy} onClick={() => deleteLead(l.id)}>🗑️ Eliminar prospecto</button>
               </div>
             </div>
           </div>
