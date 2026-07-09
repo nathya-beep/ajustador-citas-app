@@ -1,28 +1,30 @@
 import { prisma } from "@/lib/db";
 import { brand } from "@/lib/brand";
 import { LogoutButton } from "./LogoutButton";
-import { Dashboard, type Appt } from "./Dashboard";
+import { Dashboard, type Lead } from "./Dashboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const rows = await prisma.appointment.findMany({
-    include: { lead: true },
-    orderBy: { startsAt: "asc" },
+  const rows = await prisma.lead.findMany({
+    include: {
+      appointments: { orderBy: { startsAt: "asc" } },
+      followUps: { orderBy: { attemptedAt: "asc" } },
+    },
+    orderBy: { createdAt: "desc" },
   });
 
-  const appointments: Appt[] = rows.map((a) => ({
-    id: a.id,
-    startsAt: a.startsAt.toISOString(),
-    status: a.status,
-    notes: a.notes ?? null,
-    lead: {
-      firstName: a.lead.firstName,
-      lastName: a.lead.lastName,
-      email: a.lead.email,
-      phone: a.lead.phone,
-      language: a.lead.language,
-    },
+  const leads: Lead[] = rows.map((l) => ({
+    id: l.id,
+    firstName: l.firstName,
+    lastName: l.lastName,
+    email: l.email,
+    phone: l.phone,
+    language: l.language,
+    status: l.status,
+    createdAt: l.createdAt.toISOString(),
+    appointments: l.appointments.map((a) => ({ id: a.id, startsAt: a.startsAt.toISOString(), status: a.status })),
+    followUps: l.followUps.map((f) => ({ attemptedAt: f.attemptedAt.toISOString(), result: f.result })),
   }));
 
   return (
@@ -42,8 +44,8 @@ export default async function AdminDashboardPage() {
 
       <main className="admin-wrap">
         <h1>Panel del ajustador</h1>
-        <p className="subtitle">Gestiona tus citas de inspección: embudo, calendario y seguimiento.</p>
-        <Dashboard appointments={appointments} />
+        <p className="subtitle">Gestiona tus prospectos: embudo, calendario y seguimiento.</p>
+        <Dashboard leads={leads} />
       </main>
     </>
   );

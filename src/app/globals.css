@@ -289,6 +289,27 @@ footer a { color: var(--amber); }
 .modal-row span { color: var(--txt2); }
 .modal-actions { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 
+/* Chips de etapa del embudo (leads) */
+.st { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.st-nuevo { background: #e9f0f7; color: #1a3d63; }
+.st-contactado { background: #fdf1d8; color: #946200; }
+.st-agendada { background: #e2eefb; color: #155ba8; }
+.st-inspeccion { background: #e4f6ec; color: #177a4a; }
+.st-noresp { background: #fbeaea; color: #b33a3a; }
+.st-nointeres { background: #eef1f4; color: #5c6b80; }
+
+/* Pipeline de 6 columnas */
+.pipeline-6 { display: grid; grid-template-columns: repeat(6, minmax(150px, 1fr)); gap: 12px; overflow-x: auto; }
+
+/* Línea de tiempo (historial de seguimiento) */
+.timeline { border-left: 2px solid var(--line); margin: 12px 0; padding-left: 16px; }
+.tl-item { position: relative; padding-bottom: 14px; font-size: 13px; color: var(--txt); }
+.tl-item::before { content: ""; position: absolute; left: -21px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--azul); }
+.tl-item .tl-t { font-size: 11px; color: var(--txt2); }
+.note-add { display: flex; gap: 8px; margin-top: 10px; }
+.note-add input { flex: 1; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 9px; }
+.pill-prio { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: #fbeaea; color: var(--red); }
+
 @media (max-width: 720px) {
   .pipeline { grid-template-columns: 1fr 1fr; }
   .cal-day { min-height: 56px; }
