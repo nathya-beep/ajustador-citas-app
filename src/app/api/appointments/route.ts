@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { isAtLeastAdvanceHours, ACTIVE_APPOINTMENT_STATUSES, hasActiveAppointmentConflict } from "@/lib/booking";
 import { SLOT_DURATION_MINUTES, computeAvailableSlots, WeeklyAvailability } from "@/lib/availability";
 import { sendConfirmationEmail } from "@/lib/email";
+import { sendConfirmationSms } from "@/lib/sms";
 
 type CreateAppointmentBody = {
   firstName: string;
@@ -126,6 +127,19 @@ export async function POST(request: NextRequest) {
       });
     } else {
       console.warn(`Confirmation email not sent for appointment ${appointment.id}`);
+    }
+
+    // SMS/WhatsApp de confirmación (best-effort): no bloquea ni afecta la respuesta.
+    // No-op si Twilio no está configurado.
+    try {
+      await sendConfirmationSms({
+        to: body.phone!,
+        language: body.language!,
+        leadFirstName: body.firstName!,
+        startsAt,
+      });
+    } catch (smsError) {
+      console.warn(`Confirmation SMS error for appointment ${appointment.id}`, smsError);
     }
 
     return NextResponse.json({ appointment }, { status: 201 });

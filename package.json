@@ -17,19 +17,21 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^5.16.0",
+    "@types/nodemailer": "^8.0.1",
     "next": "^14.2.0",
+    "nodemailer": "^9.0.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@prisma/client": "^5.16.0",
     "resend": "^3.4.0"
   },
   "devDependencies": {
-    "prisma": "^5.16.0",
-    "typescript": "^5.5.0",
-    "ts-node": "^10.9.0",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "prisma": "^5.16.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.5.0",
     "vitest": "^1.6.0"
   }
 }
