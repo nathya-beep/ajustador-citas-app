@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadStatus {
+  new
+  contacted
+  scheduled
+  no_response
+  not_interested
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+  rescheduled
+}
+
+model Adjuster {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  serviceAreas String
+  availability Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Lead {
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  phone        String
+  language     String        @default("es")
+  status       LeadStatus    @default(new)
+  appointments Appointment[]
+  followUps    FollowUp[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+// DRIFT WARNING — active-slot uniqueness is enforced by a PARTIAL unique index
+// (Appointment_active_slot_key), scoped to status IN ('pending','confirmed'), that
+// exists ONLY in migration SQL — see:
+//   prisma/migrations/20260708193551_partial_unique_active_appointment_slot/migration.sql
+// Prisma's schema DSL cannot express partial/filtered indexes (Prisma 5.x limitation),
+// so it is invisible to this file. Do NOT run `prisma db push` against a database that
+// has this migration applied — db push diffs against this schema, sees no such index,
+// and will DROP it, silently re-allowing double-booking of a freed slot. Always use
+// migration-based commands (`prisma migrate deploy` / `prisma migrate dev`) for this project.
+model Appointment {
+  id          String            @id @default(cuid())
+  leadId      String
+  lead        Lead              @relation(fields: [leadId], references: [id])
+  startsAt    DateTime
+  endsAt      DateTime
+  status             AppointmentStatus @default(pending)
+  notes              String?
+  cancelToken        String            @unique @default(cuid())
+  reminderSentAt     DateTime?
+  confirmationSentAt DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model FollowUp {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  attemptedAt DateTime @default(now())
+  result      String
+}
