@@ -1,18 +1,29 @@
 import { prisma } from "@/lib/db";
 import { brand } from "@/lib/brand";
-import { AppointmentRow } from "./AppointmentRow";
 import { LogoutButton } from "./LogoutButton";
+import { Dashboard, type Appt } from "./Dashboard";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const appointments = await prisma.appointment.findMany({
+  const rows = await prisma.appointment.findMany({
     include: { lead: true },
     orderBy: { startsAt: "asc" },
   });
 
-  const total = appointments.length;
-  const upcoming = appointments.filter((a) => a.status === "pending" || a.status === "confirmed").length;
-  const completed = appointments.filter((a) => a.status === "completed").length;
-  const cancelled = appointments.filter((a) => a.status === "cancelled").length;
+  const appointments: Appt[] = rows.map((a) => ({
+    id: a.id,
+    startsAt: a.startsAt.toISOString(),
+    status: a.status,
+    notes: a.notes ?? null,
+    lead: {
+      firstName: a.lead.firstName,
+      lastName: a.lead.lastName,
+      email: a.lead.email,
+      phone: a.lead.phone,
+      language: a.lead.language,
+    },
+  }));
 
   return (
     <>
@@ -30,37 +41,9 @@ export default async function AdminDashboardPage() {
       </header>
 
       <main className="admin-wrap">
-        <h1>Citas</h1>
-        <p className="subtitle">Gestiona las inspecciones agendadas.</p>
-
-        <div className="admin-kpis">
-          <div className="admin-kpi k1"><div className="lbl">Total</div><div className="val">{total}</div></div>
-          <div className="admin-kpi k2"><div className="lbl">Próximas</div><div className="val">{upcoming}</div></div>
-          <div className="admin-kpi k3"><div className="lbl">Completadas</div><div className="val">{completed}</div></div>
-          <div className="admin-kpi k4"><div className="lbl">Canceladas</div><div className="val">{cancelled}</div></div>
-        </div>
-
-        <div className="admin-card">
-          {appointments.length === 0 ? (
-            <div className="admin-empty">Aún no hay citas agendadas.</div>
-          ) : (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Cliente</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map((appointment) => (
-                  <AppointmentRow key={appointment.id} appointment={appointment} />
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <h1>Panel del ajustador</h1>
+        <p className="subtitle">Gestiona tus citas de inspección: embudo, calendario y seguimiento.</p>
+        <Dashboard appointments={appointments} />
       </main>
     </>
   );
