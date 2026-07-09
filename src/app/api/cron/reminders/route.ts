@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
+import { sendReminderSms } from "@/lib/sms";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -48,6 +49,18 @@ export async function GET(request: NextRequest) {
       });
     } else {
       console.warn(`Reminder email failed for appointment ${appointment.id}; will retry next run`);
+    }
+
+    // SMS/WhatsApp de recordatorio (best-effort). No-op si Twilio no está configurado.
+    try {
+      await sendReminderSms({
+        to: appointment.lead.phone,
+        language: appointment.lead.language === "en" ? "en" : "es",
+        leadFirstName: appointment.lead.firstName,
+        startsAt: appointment.startsAt,
+      });
+    } catch (smsError) {
+      console.warn(`Reminder SMS error for appointment ${appointment.id}`, smsError);
     }
   }
 

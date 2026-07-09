@@ -1,11 +1,69 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
+
+/**
+ * Capa de envío de correo con dos transportes intercambiables:
+ *
+ *  1. SMTP (nodemailer) — funciona con proveedores GRATUITOS y sin dominio propio
+ *     (SendGrid single-sender, Brevo, Gmail con contraseña de aplicación, etc.).
+ *     Se activa si defines SMTP_HOST, SMTP_USER y SMTP_PASS.
+ *  2. Resend — se usa si defines RESEND_API_KEY (requiere dominio verificado).
+ *
+ * Si no hay ninguno configurado, no se envía nada (comportamiento previo) y se
+ * devuelve { success: false } sin lanzar errores, para que el flujo de citas
+ * nunca falle por el correo.
+ */
+
+const FROM_ADDRESS = process.env.EMAIL_FROM || "citas@tudominio.com";
+
+let smtpTransport: nodemailer.Transporter | null = null;
+function getSmtpTransport(): nodemailer.Transporter | null {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return null;
+  }
+  if (!smtpTransport) {
+    smtpTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === "true", // true para 465, false para 587/STARTTLS
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  return smtpTransport;
+}
 
 function getResendClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-const FROM_ADDRESS = "citas@tudominio.com";
+/** Envío genérico: SMTP primero, luego Resend, luego no-op. Nunca lanza. */
+async function deliver(to: string, subject: string, text: string): Promise<{ success: boolean }> {
+  const smtp = getSmtpTransport();
+  if (smtp) {
+    try {
+      await smtp.sendMail({ from: FROM_ADDRESS, to, subject, text });
+      return { success: true };
+    } catch (error) {
+      console.error("SMTP email failed", error);
+      return { success: false };
+    }
+  }
+
+  const resend = getResendClient();
+  if (resend) {
+    try {
+      await resend.emails.send({ from: FROM_ADDRESS, to, subject, text });
+      return { success: true };
+    } catch (error) {
+      console.error("Resend email failed", error);
+      return { success: false };
+    }
+  }
+
+  console.warn("No email transport configured (SMTP_* or RESEND_API_KEY); skipping email");
+  return { success: false };
+}
 
 type ConfirmationEmailParams = {
   to: string;
@@ -36,24 +94,7 @@ function formatConfirmationBody(params: ConfirmationEmailParams): string {
 export async function sendConfirmationEmail(
   params: ConfirmationEmailParams
 ): Promise<{ success: boolean }> {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn("RESEND_API_KEY not set, skipping confirmation email");
-    return { success: false };
-  }
-
-  try {
-    await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: params.to,
-      subject: CONFIRMATION_SUBJECT[params.language],
-      text: formatConfirmationBody(params),
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to send confirmation email", error);
-    return { success: false };
-  }
+  return deliver(params.to, CONFIRMATION_SUBJECT[params.language], formatConfirmationBody(params));
 }
 
 type ReminderEmailParams = {
@@ -85,24 +126,7 @@ function formatReminderBody(params: ReminderEmailParams): string {
 export async function sendReminderEmail(
   params: ReminderEmailParams
 ): Promise<{ success: boolean }> {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn("RESEND_API_KEY not set, skipping reminder email");
-    return { success: false };
-  }
-
-  try {
-    await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: params.to,
-      subject: REMINDER_SUBJECT[params.language],
-      text: formatReminderBody(params),
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to send reminder email", error);
-    return { success: false };
-  }
+  return deliver(params.to, REMINDER_SUBJECT[params.language], formatReminderBody(params));
 }
 
 type FollowUpEmailParams = {
@@ -127,22 +151,5 @@ function formatFollowUpBody(params: FollowUpEmailParams): string {
 export async function sendFollowUpEmail(
   params: FollowUpEmailParams
 ): Promise<{ success: boolean }> {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn("RESEND_API_KEY not set, skipping follow-up email");
-    return { success: false };
-  }
-
-  try {
-    await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: params.to,
-      subject: FOLLOW_UP_SUBJECT[params.language],
-      text: formatFollowUpBody(params),
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to send follow-up email", error);
-    return { success: false };
-  }
+  return deliver(params.to, FOLLOW_UP_SUBJECT[params.language], formatFollowUpBody(params));
 }
