@@ -39,18 +39,20 @@ const STAGE_TO_STATUS: Record<string, string> = {
   nointeres: "not_interested",
 };
 
-function stageOf(l: Lead): Stage {
-  if (l.appointments.some((a) => a.status === "completed")) return "inspeccion";
-  switch (l.status) {
-    case "contacted": return "contactado";
-    case "scheduled": return "agendada";
-    case "no_response": return "noresp";
-    case "not_interested": return "nointeres";
-    default: return "nuevo";
-  }
-}
 function activeAppt(l: Lead): Appointment | undefined {
   return l.appointments.find((a) => a.status === "pending" || a.status === "confirmed");
+}
+function stageOf(l: Lead): Stage {
+  if (l.appointments.some((a) => a.status === "completed")) return "inspeccion";
+  if (activeAppt(l)) return "agendada"; // "agendada" = tiene una cita activa real
+  switch (l.status) {
+    case "no_response": return "noresp";
+    case "not_interested": return "nointeres";
+    case "contacted": return "contactado";
+    // "scheduled" sin cita activa (p. ej. cancelada) vuelve a contactado para re-agendar
+    case "scheduled": return "contactado";
+    default: return "nuevo";
+  }
 }
 
 function isoLocal(d: Date) {
@@ -76,6 +78,22 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Mini-agendador dentro del modal (Contactado -> Agendada desde el panel)
+  const [sched, setSched] = useState(false);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedSlots, setSchedSlots] = useState<string[]>([]);
+  const [schedLoading, setSchedLoading] = useState(false);
+  useEffect(() => { setSched(false); setSchedDate(""); setErr(""); setNote(""); }, [selectedId]);
+  useEffect(() => {
+    if (!sched || !schedDate) { setSchedSlots([]); return; }
+    setSchedLoading(true);
+    fetch(`/api/availability?date=${schedDate}`)
+      .then((r) => r.json())
+      .then((d) => setSchedSlots(d.slots ?? []))
+      .catch(() => setSchedSlots([]))
+      .finally(() => setSchedLoading(false));
+  }, [sched, schedDate]);
+
   const selected = leads.find((l) => l.id === selectedId) ?? null;
 
   async function call(url: string, method: string, body?: object) {
@@ -86,7 +104,11 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
         headers: { "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined,
       });
-      if (!res.ok) { setErr("No se pudo completar la acción."); return false; }
+      if (!res.ok) {
+        let msg = "No se pudo completar la acción.";
+        try { const j = await res.json(); if (j?.error) msg = j.error; } catch {}
+        setErr(msg); return false;
+      }
       router.refresh();
       return true;
     } catch {
@@ -94,6 +116,13 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
     } finally {
       setBusy(false);
     }
+  }
+  async function bookForLead(l: Lead, startsAt: string) {
+    const ok = await call("/api/appointments", "POST", {
+      firstName: l.firstName, lastName: l.lastName, email: l.email, phone: l.phone,
+      language: l.language === "en" ? "en" : "es", startsAt,
+    });
+    if (ok) { setSched(false); setSchedDate(""); setSchedSlots([]); }
   }
   const setStage = (leadId: string, status: string) => call(`/api/admin/leads/${leadId}`, "PATCH", { status });
   const apptAction = (apptId: string, status: string) => call(`/api/appointments/${apptId}`, "PATCH", { status });
@@ -317,6 +346,7 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
       {/* MODAL DETALLE */}
       {selected && (() => {
         const l = selected; const s = stageOf(l); const ap = activeAppt(l);
+        const minD = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoLocal(d); })();
         return (
           <div className="modal-bg" onClick={(e) => e.target === e.currentTarget && setSelectedId(null)}>
             <div className="modal">
@@ -336,6 +366,34 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
                   {ap.status === "pending" && <button className="btn btn-ink btn-sm" disabled={busy} onClick={() => apptAction(ap.id, "confirmed")}>Confirmar cita</button>}
                   <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => apptAction(ap.id, "completed")}>Inspección hecha</button>
                   <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => apptAction(ap.id, "cancelled")}>Cancelar cita</button>
+                </div>
+              )}
+
+              {/* Agendar cita desde el panel (Contactado -> Agendada) */}
+              {!ap && s !== "inspeccion" && s !== "nointeres" && (
+                <div style={{ marginTop: 4 }}>
+                  {!sched ? (
+                    <button className="btn btn-primary btn-sm" onClick={() => setSched(true)}>＋ Agendar cita</button>
+                  ) : (
+                    <div style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 10, padding: 14, marginTop: 4 }}>
+                      <div className="field" style={{ marginBottom: 10 }}>
+                        <label>Fecha de la cita</label>
+                        <input type="date" min={minD} value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
+                      </div>
+                      {schedDate && (schedLoading ? (
+                        <p className="muted">Cargando horarios…</p>
+                      ) : schedSlots.length === 0 ? (
+                        <p className="muted">No hay horarios disponibles ese día.</p>
+                      ) : (
+                        <ul className="slots">
+                          {schedSlots.map((sl) => (
+                            <li key={sl}><button type="button" disabled={busy} onClick={() => bookForLead(l, sl)}>{fmtTime(new Date(sl))}</button></li>
+                          ))}
+                        </ul>
+                      ))}
+                      <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setSched(false)}>Cerrar</button>
+                    </div>
+                  )}
                 </div>
               )}
 
