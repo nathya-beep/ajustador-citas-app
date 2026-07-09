@@ -20,12 +20,14 @@ export default function SchedulePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [availabilityError, setAvailabilityError] = useState("");
 
-  // fecha mínima: mañana (regla de 24 h)
-  const minDate = (() => {
+  // fecha mínima: mañana (regla de 24 h). Se calcula tras montar para usar la zona
+  // horaria del navegador y evitar desajustes de hidratación con el servidor (UTC).
+  const [minDate, setMinDate] = useState("");
+  useEffect(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+    setMinDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+  }, []);
 
   useEffect(() => {
     if (!date) return;

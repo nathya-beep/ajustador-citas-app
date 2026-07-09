@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export type Appt = {
@@ -43,6 +43,10 @@ export function Dashboard({ appointments }: { appointments: Appt[] }) {
   const [selected, setSelected] = useState<Appt | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
+  // Evita desajustes de hidratación: las fechas se formatean con la zona horaria
+  // del navegador, que difiere de la del servidor (UTC). Renderizamos tras montar.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   async function update(id: string, status: string) {
     setBusy(id);
@@ -66,6 +70,10 @@ export function Dashboard({ appointments }: { appointments: Appt[] }) {
     }
   }
 
+  if (!mounted) {
+    return <div className="admin-empty" style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "var(--radio)" }}>Cargando panel…</div>;
+  }
+
   const total = appointments.length;
   const count = (s: string) => appointments.filter((a) => a.status === s).length;
   const funnelStages: Status[] = ["pending", "confirmed", "completed"];
@@ -82,7 +90,7 @@ export function Dashboard({ appointments }: { appointments: Appt[] }) {
     } else if ((a.status === "pending" || a.status === "confirmed") && diff === 1) {
       reminders.push({ tone: "r-amber", ico: "🔔", order: 2, appt: a, title: "Cita mañana", text: `${fullName(a)} · ${fmtDate(d)} ${fmtTime(d)}. Envía recordatorio.` });
     }
-    if (a.status === "pending" && diff >= 0) {
+    if (a.status === "pending" && diff >= 2) {
       reminders.push({ tone: "r-amber", ico: "✅", order: 3, appt: a, title: "Pendiente de confirmar", text: `${fullName(a)} · ${fmtDate(d)}. Confirma la cita con el cliente.` });
     }
   }
