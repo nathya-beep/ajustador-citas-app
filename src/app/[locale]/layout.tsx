@@ -1,5 +1,6 @@
-import { isValidLocale } from "@/lib/i18n";
+import { isValidLocale, defaultLocale, type Locale } from "@/lib/i18n";
 import { notFound } from "next/navigation";
+import { WhatsappButton } from "./WhatsappButton";
 
 export function generateStaticParams() {
   return [{ locale: "en" }, { locale: "es" }];
@@ -15,5 +16,11 @@ export default function LocaleLayout({
   if (!isValidLocale(params.locale)) {
     notFound();
   }
-  return <>{children}</>;
+  const locale: Locale = isValidLocale(params.locale) ? params.locale : defaultLocale;
+  return (
+    <>
+      {children}
+      <WhatsappButton locale={locale} />
+    </>
+  );
 }

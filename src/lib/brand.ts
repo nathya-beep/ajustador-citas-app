@@ -6,6 +6,7 @@ export const brand = {
   name: "InspectPro",
   phone: "+1 (305) 555-0100", // teléfono visible
   phoneHref: "+13055550100", // el mismo número, solo dígitos y +
+  whatsapp: "17543297290", // número de WhatsApp, solo dígitos (con código de país, sin +)
   license: "FL-000000", // número de licencia estatal
   years: "12", // años de experiencia
   inspections: "3,500+", // inspecciones realizadas
